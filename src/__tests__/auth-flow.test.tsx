@@ -288,25 +288,25 @@ describe('corporate sign-up', () => {
 
 describe('sign in with user ID + password', () => {
   beforeEach(async () => {
-    await registerDirect(server, { userType: 'individual', email: 'meera@example.com', mobile: '+919811122233', firstName: 'Meera' });
+    await registerDirect(server, { userType: 'individual', email: 'second.user@example.com', mobile: '+919811122233', firstName: 'Second' });
   });
 
   it('signs in with email', async () => {
     await openSignIn();
-    signIn('Meera@Example.com', TEST_PASSWORD);
-    expect(await screen.findByText('Hi, Meera 👋')).toBeOnTheScreen();
-    expect((await sessionStore.load())?.user.email).toBe('meera@example.com');
+    signIn('Second.User@Example.com', TEST_PASSWORD);
+    expect(await screen.findByText('Hi, Second 👋')).toBeOnTheScreen();
+    expect((await sessionStore.load())?.user.email).toBe('second.user@example.com');
   });
 
   it('signs in with the mobile number in local format', async () => {
     await openSignIn();
     signIn('98111 22233', TEST_PASSWORD);
-    expect(await screen.findByText('Hi, Meera 👋')).toBeOnTheScreen();
+    expect(await screen.findByText('Hi, Second 👋')).toBeOnTheScreen();
   });
 
   it('gives the same message for a wrong password and an unknown user', async () => {
     await openSignIn();
-    signIn('meera@example.com', 'WrongPass1');
+    signIn('second.user@example.com', 'WrongPass1');
     expect(await screen.findByText('Incorrect user ID or password.')).toBeOnTheScreen();
     signIn('nobody@example.com', TEST_PASSWORD);
     expect(await screen.findByText('Incorrect user ID or password.')).toBeOnTheScreen();
@@ -316,10 +316,10 @@ describe('sign in with user ID + password', () => {
   it('locks sign in after repeated failures, even with the right password', async () => {
     await openSignIn();
     for (let i = 0; i < LOGIN_MAX_ATTEMPTS; i++) {
-      signIn('meera@example.com', `Wrong${i}pass`);
+      signIn('second.user@example.com', `Wrong${i}pass`);
       await screen.findByText('Incorrect user ID or password.');
     }
-    signIn('meera@example.com', TEST_PASSWORD);
+    signIn('second.user@example.com', TEST_PASSWORD);
     expect(await screen.findByText(/Too many failed attempts/)).toBeOnTheScreen();
     expect(await sessionStore.load()).toBeNull();
   });
@@ -354,7 +354,7 @@ describe('session lifecycle', () => {
   it('restores a persisted session on launch', async () => {
     await signInDirect(server);
     renderRouter(APP_DIR, { initialUrl: '/' });
-    expect(await screen.findByText('Hi, Harsha 👋')).toBeOnTheScreen();
+    expect(await screen.findByText('Hi, Test 👋')).toBeOnTheScreen();
   });
 
   it('discards an expired stored session', async () => {

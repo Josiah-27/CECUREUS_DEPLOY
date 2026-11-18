@@ -48,7 +48,7 @@ export default function SignInScreen() {
         testID="signin-user-id"
         label="User ID"
         hint="Your email, mobile number or employee ID"
-        placeholder="you@example.com or 98765 43210"
+        placeholder="Email, mobile number or employee ID"
         value={userId}
         onChangeText={(t) => {
           setUserId(t);

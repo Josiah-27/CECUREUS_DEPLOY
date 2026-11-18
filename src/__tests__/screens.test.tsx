@@ -20,7 +20,7 @@ afterEach(() => jest.useRealTimers());
 describe('home', () => {
   it('greets the user, records mood locally and navigates via tiles', async () => {
     renderRouter(APP_DIR, { initialUrl: '/' });
-    expect(await screen.findByText('Hi, Harsha 👋')).toBeOnTheScreen();
+    expect(await screen.findByText('Hi, Test 👋')).toBeOnTheScreen();
     expect(screen.getByText('Covered by Fixture Corp')).toBeOnTheScreen();
     fireEvent.press(screen.getByTestId('mood-stressed'));
     expect(screen.getByTestId('mood-support')).toBeOnTheScreen();
@@ -83,15 +83,15 @@ describe('profile', () => {
     expect(await screen.findByText('Enter an age between 18 and 100.')).toBeOnTheScreen();
     expect(server.state.calls.some((c) => c.method === 'PATCH')).toBe(false);
 
-    fireEvent.changeText(screen.getByTestId('first-name'), 'Harshini');
+    fireEvent.changeText(screen.getByTestId('first-name'), 'Renamed');
     fireEvent.changeText(screen.getByTestId('age'), '29');
     fireEvent.press(screen.getByTestId('save-profile'));
     await waitFor(() => expect(alert).toHaveBeenCalledWith('Profile updated', expect.any(String)));
     const patch = server.state.calls.find((c) => c.method === 'PATCH');
-    expect(patch?.body).toEqual({ firstName: 'Harshini', lastName: 'Verma', age: 29 });
-    expect((await sessionStore.load())?.user).toMatchObject({ firstName: 'Harshini', age: 29 });
-    const row = server.state.employee_list.find((r) => r.emp_email === 'harsha@fixturecorp.com')!;
-    expect(row).toMatchObject({ emp_name: 'Harshini', emp_age: '29' });
+    expect(patch?.body).toEqual({ firstName: 'Renamed', lastName: 'User', age: 29 });
+    expect((await sessionStore.load())?.user).toMatchObject({ firstName: 'Renamed', age: 29 });
+    const row = server.state.employee_list.find((r) => r.emp_email === 'employee.one@fixturecorp.com')!;
+    expect(row).toMatchObject({ emp_name: 'Renamed', emp_age: '29' });
   });
 
   it('adds an age from the profile screen and shows it after saving', async () => {
@@ -117,7 +117,7 @@ describe('profile', () => {
       fireEvent.press(screen.getByTestId('delete-account'));
     });
     expect(await screen.findByTestId('get-started')).toBeOnTheScreen();
-    expect(server.state.deletionRequests).toEqual(['harsha@fixturecorp.com']);
+    expect(server.state.deletionRequests).toEqual(['employee.one@fixturecorp.com']);
     expect(await journalStore.all()).toEqual([]);
     expect(await goalStore.all()).toEqual([]);
     expect(await sessionStore.load()).toBeNull();
