@@ -20,6 +20,8 @@ The contract below exposes only the fields the app needs, behind authentication.
 ## Conventions
 
 - Base URL: `${EXPO_PUBLIC_API_BASE_URL}` — proposed `https://eap.cecureus.com/api/mobile/v1`. **HTTPS only.**
+- **HTTP methods: only `GET`, `POST`, `PUT`, `DELETE`** (the CecureUs server allows only these). Any other
+  method, including `PATCH` and `OPTIONS`, is answered with `405 METHOD_NOT_ALLOWED`.
 - JSON request/response bodies, UTF-8.
 - Success envelope: `{ "status": true, "data": <payload> }`
 - Error envelope (any 4xx/5xx): `{ "status": false, "message": "<user-safe text>", "code": "<MACHINE_CODE>" }`
@@ -108,7 +110,7 @@ Password reset is not part of Phase 1 (the app points users to support) — see 
 `sessionsRemaining` comes from the corporate entitlement (per-company policy; `null` for individuals).
 
 - `GET /me` → User
-- `PATCH /me` — body `{ "firstName", "lastName" | null, "age": 18–100 | null }` → updated User
+- `PUT /me` — body `{ "firstName", "lastName" | null, "age": 18–100 | null }` (all three fields, every time) → updated User
   (`emp_name`, `emp_lname`, `emp_age`). Email and mobile are verified at sign-up and are not editable here.
   Errors: `422 VALIDATION`, `422 INVALID_AGE`.
 - `DELETE /me` — account deletion request (Google Play requirement). Cancels future bookings, deletes or

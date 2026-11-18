@@ -127,10 +127,14 @@ check('Login with email', $s === 200 && isset($r['data']['accessToken']), $r);
 check('Login with mobile (98765 43210 format)', $s === 200 && isset($r['data']['accessToken']), $r);
 [$s, $r] = call('GET', 'me', null, $token);
 check('GET /me', $s === 200 && ($r['data']['email'] ?? '') === $email && ($r['data']['mobile'] ?? '') === $mobile, $r);
-[$s, $r] = call('PATCH', 'me', ['firstName' => 'Smoke', 'lastName' => 'Tester', 'age' => 17], $token);
+[$s, $r] = call('PUT', 'me', ['firstName' => 'Smoke', 'lastName' => 'Tester', 'age' => 17], $token);
 check('Age 17 → 422 INVALID_AGE', $s === 422 && ($r['code'] ?? '') === 'INVALID_AGE', $r);
-[$s, $r] = call('PATCH', 'me', ['firstName' => 'Smoke', 'lastName' => 'Tester', 'age' => 30], $token);
-check('PATCH /me', $s === 200 && ($r['data']['age'] ?? null) === 30 && ($r['data']['lastName'] ?? '') === 'Tester', $r);
+[$s, $r] = call('PUT', 'me', ['firstName' => 'Smoke', 'lastName' => 'Tester', 'age' => 30], $token);
+check('PUT /me', $s === 200 && ($r['data']['age'] ?? null) === 30 && ($r['data']['lastName'] ?? '') === 'Tester', $r);
+foreach (['PATCH', 'OPTIONS'] as $method) {
+    [$s, $r] = call($method, 'me', null, $token);
+    check("{$method} → 405 (only GET, POST, PUT, DELETE)", $s === 405 && ($r['code'] ?? '') === 'METHOD_NOT_ALLOWED', $r);
+}
 
 echo "\n4. Counsellors and booking\n";
 [$s, $r] = call('GET', 'counsellors', null, $token);

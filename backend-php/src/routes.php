@@ -5,6 +5,7 @@ declare(strict_types=1);
 /*
  * Every endpoint of the mobile API, relative to BASE_PATH (default /api/mobile/v1).
  * Matches docs/API_CONTRACT.md and the app's src/api/endpoints.ts one-to-one.
+ * HTTP methods: only GET, POST, PUT and DELETE.
  */
 
 use Cecureus\Controllers\AssessmentController;
@@ -33,7 +34,7 @@ $router->post('auth/logout', [AuthController::class, 'logout']);
 
 // PROFILE (login needed)
 $router->get('me', [ProfileController::class, 'show']);
-$router->patch('me', [ProfileController::class, 'update']);
+$router->put('me', [ProfileController::class, 'update']);
 $router->delete('me', [ProfileController::class, 'destroy']);
 
 // LISTS (no login needed)

@@ -285,6 +285,10 @@ export function createMockServer(opts: MockServerOptions = {}) {
   }
 
   function route(method: string, path: string, query: URLSearchParams, headers: Record<string, string>, body: any) {
+    // The CecureUs server accepts only GET, POST, PUT and DELETE.
+    if (!['GET', 'POST', 'PUT', 'DELETE'].includes(method)) {
+      return fail(405, 'Only GET, POST, PUT and DELETE are supported.', 'METHOD_NOT_ALLOWED');
+    }
     // ---- Registration: email OTP → mobile OTP → name + password ----
     if (method === 'POST' && path === 'auth/register/email/request') {
       const email = String(body?.email ?? '').trim().toLowerCase();
@@ -413,7 +417,7 @@ export function createMockServer(opts: MockServerOptions = {}) {
       return ok(null);
     }
     if (method === 'GET' && path === 'me') return ok(toUser(user));
-    if (method === 'PATCH' && path === 'me') {
+    if (method === 'PUT' && path === 'me') {
       if (!String(body?.firstName ?? '').trim()) return fail(422, 'First name is required.', 'VALIDATION');
       const age = body?.age;
       if (age !== null && age !== undefined && (!Number.isInteger(age) || age < 18 || age > 100)) {

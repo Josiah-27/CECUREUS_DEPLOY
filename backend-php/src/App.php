@@ -24,45 +24,24 @@ final class App
             throw new \ErrorException($message, 0, $severity, $file, $line);
         });
 
-        $corsHeaders = [];
+        $headers = [];
         try {
             $request = Request::fromGlobals();
-            $corsHeaders = self::corsHeaders($request);
-            if ($request->method === 'OPTIONS') {
-                $response = Response::noContent();
-            } else {
-                /** @var Router $router */
-                $router = require __DIR__ . '/routes.php';
-                $response = $router->dispatch($request);
-            }
+            /** @var Router $router */
+            $router = require __DIR__ . '/routes.php';
+            $response = $router->dispatch($request);
         } catch (ApiException $e) {
             $response = Response::fromException($e);
+            if ($e->httpStatus === 405) {
+                $headers['Allow'] = implode(', ', Router::ALLOWED_METHODS);
+            }
         } catch (\Throwable $e) {
             // Details go to storage/logs/app.log only — never to the client.
             Log::error('Unhandled', $e);
             $response = Response::fail(500, 'SERVER_ERROR', 'Something went wrong on our side. Please try again shortly.');
         }
-        $response->send($corsHeaders);
-    }
-
-    /**
-     * The Android app does not need CORS. Only the web preview does — list its origins in
-     * CORS_ALLOWED_ORIGINS (comma separated). Never use "*" with Authorization headers.
-     * @return array<string, string>
-     */
-    private static function corsHeaders(Request $request): array
-    {
-        $origin = $request->header('origin');
-        if ($origin === null || !in_array($origin, Config::list('CORS_ALLOWED_ORIGINS'), true)) {
-            return [];
-        }
-        return [
-            'Access-Control-Allow-Origin' => $origin,
-            'Vary' => 'Origin',
-            'Access-Control-Allow-Methods' => 'GET, POST, PATCH, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers' => 'Authorization, Content-Type, Accept, Idempotency-Key',
-            'Access-Control-Expose-Headers' => 'Retry-After',
-            'Access-Control-Max-Age' => '600',
-        ];
+        // No CORS headers: the API is for the mobile app only, and it uses only GET, POST, PUT and DELETE
+        // (a browser's OPTIONS preflight is answered with 405).
+        $response->send($headers);
     }
 }

@@ -75,7 +75,7 @@ export function createEndpoints(client: ApiClient) {
     profile: {
       get: () => client.request('me', userSchema),
       update: (patch: { firstName: string; lastName: string | null; age: number | null }) =>
-        client.request('me', userSchema, { method: 'PATCH', body: patch }),
+        client.request('me', userSchema, { method: 'PUT', body: patch }),
       requestDeletion: () => client.request('me', okSchema, { method: 'DELETE' }),
     },
 

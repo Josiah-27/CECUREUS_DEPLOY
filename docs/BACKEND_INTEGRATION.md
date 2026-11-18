@@ -35,6 +35,10 @@ Accept: application/json
 Authorization: Bearer 3kq…F1w                ← omitted for auth/*, issues, languages
 ```
 
+Only four HTTP methods are ever used — **GET** (read), **POST** (create / actions), **PUT** (update profile)
+and **DELETE** (delete account) — because the CecureUs server allows only these. The client's `HttpMethod`
+type (`src/api/client.ts`) doesn't allow anything else, and the server answers other methods with 405.
+
 For writes the body is JSON (`Content-Type: application/json`). The client:
 
 - times out after 15 s (30 s for bookings) and shows "check your connection";
@@ -56,7 +60,7 @@ For writes the body is JSON (`Content-Type: application/json`). The client:
 | `POST auth/register/complete` `{registrationToken, firstName, lastName, password, employeeId}` | `auth.register.complete` | name + password |
 | `POST auth/login` `{userId, password}` | `auth.login` | I already have an account |
 | `POST auth/logout` | `auth.logout` | Profile → Sign out |
-| `GET me` · `PATCH me` · `DELETE me` | `profile.get` · `profile.update` · `profile.requestDeletion` | Profile, Edit Profile, Delete Account |
+| `GET me` · `PUT me` · `DELETE me` | `profile.get` · `profile.update` · `profile.requestDeletion` | Profile, Edit Profile, Delete Account |
 | `GET issues` · `GET languages` | `reference.issues` · `reference.languages` | booking form |
 | `GET counsellors?search=&expertise=&page=` | `counsellors.list` | Counsellor tab |
 | `GET counsellors/{id}` · `…/availability?from=&to=` | `counsellors.get` · `counsellors.availability` | profile + calendar |

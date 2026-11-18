@@ -81,13 +81,13 @@ describe('profile', () => {
     fireEvent.changeText(screen.getByTestId('age'), '130');
     fireEvent.press(screen.getByTestId('save-profile'));
     expect(await screen.findByText('Enter an age between 18 and 100.')).toBeOnTheScreen();
-    expect(server.state.calls.some((c) => c.method === 'PATCH')).toBe(false);
+    expect(server.state.calls.some((c) => c.method === 'PUT')).toBe(false);
 
     fireEvent.changeText(screen.getByTestId('first-name'), 'Renamed');
     fireEvent.changeText(screen.getByTestId('age'), '29');
     fireEvent.press(screen.getByTestId('save-profile'));
     await waitFor(() => expect(alert).toHaveBeenCalledWith('Profile updated', expect.any(String)));
-    const patch = server.state.calls.find((c) => c.method === 'PATCH');
+    const patch = server.state.calls.find((c) => c.method === 'PUT');
     expect(patch?.body).toEqual({ firstName: 'Renamed', lastName: 'User', age: 29 });
     expect((await sessionStore.load())?.user).toMatchObject({ firstName: 'Renamed', age: 29 });
     const row = server.state.employee_list.find((r) => r.emp_email === 'employee.one@fixturecorp.com')!;

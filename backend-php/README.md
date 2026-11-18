@@ -10,6 +10,7 @@ existing PHP site. Either way, the app does not change: it only needs the base U
 
 ```
 Base URL:  https://eap.cecureus.com/api/mobile/v1
+Methods:   GET, POST, PUT, DELETE only (anything else → 405)
 Login:     Authorization: Bearer <accessToken>
 Success:   {"status": true,  "data": …}
 Error:     {"status": false, "message": "…", "code": "…"}   + HTTP 400/401/404/409/422/429/5xx
@@ -143,7 +144,7 @@ It never uses DELETE on existing tables.
 |---|---|---|
 | `POST auth/register/email/request` · `email/verify` · `phone/request` · `phone/verify` · `complete` | no | `src/Controllers/AuthController.php` |
 | `POST auth/login` · `POST auth/logout` | no / yes | `src/Controllers/AuthController.php` |
-| `GET me` · `PATCH me` · `DELETE me` | yes | `src/Controllers/ProfileController.php` |
+| `GET me` · `PUT me` · `DELETE me` | yes | `src/Controllers/ProfileController.php` |
 | `GET issues` · `GET languages` | no | `src/Controllers/ReferenceController.php` |
 | `GET counsellors` · `counsellors/{id}` · `counsellors/{id}/availability` | yes | `src/Controllers/CounsellorController.php`, `src/Repo/Counsellors.php` |
 | `POST bookings` · `GET bookings` · `POST bookings/{id}/cancel` | yes | `src/Controllers/BookingController.php`, `src/Repo/Bookings.php` |
@@ -154,7 +155,8 @@ It never uses DELETE on existing tables.
 ```
 public/index.php, .htaccess   entry point + URL rewrite
 src/routes.php                every URL → controller method
-src/App.php                   error handling (every error becomes the JSON envelope), CORS
+src/App.php                   error handling (every error becomes the JSON envelope)
+src/Http/Router.php           routing; only GET, POST, PUT, DELETE (others → 405)
 src/Controllers/              input validation + the rules from the contract
 src/Repo/                     ALL SQL (change column names here if the website differs)
 src/Security/                 Sessions (bearer tokens), Otp, Passwords, RateLimiter

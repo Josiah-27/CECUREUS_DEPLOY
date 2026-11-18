@@ -2,7 +2,8 @@ import { z } from 'zod';
 
 import { ApiError, kindForStatus } from './errors';
 
-export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
+/** The CecureUs server allows only these four methods. */
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
 export type RequestOptions = {
   method?: HttpMethod;

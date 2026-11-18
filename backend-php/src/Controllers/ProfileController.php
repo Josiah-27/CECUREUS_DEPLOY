@@ -23,7 +23,7 @@ final class ProfileController
         return Response::ok(Employees::toUser(Sessions::authenticate($request)));
     }
 
-    /** PATCH /me {firstName, lastName, age} — email and mobile are verified at sign-up and not editable. */
+    /** PUT /me {firstName, lastName, age} — email and mobile are verified at sign-up and not editable. */
     public static function update(Request $request): Response
     {
         $employee = Sessions::authenticate($request);
