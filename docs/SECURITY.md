@@ -16,11 +16,29 @@ Date: 2026-10-20. Scope: mobile app source in this repo + read-only observation 
 Only `doctor_list` was observed (plus non-sensitive `doctor_category`). User, booking, admin and token tables
 were deliberately **not** requested.
 
+## Authentication design (production)
+
+| | Where it happens |
+|---|---|
+| OTP generation (CSPRNG), hashing, expiry (10 min), resend cooldown (60 s), 5-try lockout, per-target and per-IP limits | **Server** — `backend-php/src/Security/Otp.php` |
+| Sending the email code / SMS code (SMS Integra over HTTPS, DLT template) | **Server** — credentials only in `backend-php/.env` |
+| Password hashing (Argon2id/bcrypt, MD5 legacy hashes upgraded on login), login lockout, generic errors | **Server** — `Passwords.php`, `AuthController::login` |
+| Session tokens: 256-bit random, only SHA-256 stored, 30-day expiry, revoked on logout/deletion/deactivation | **Server** — `Sessions.php` |
+| Token storage on the phone | **App** — Android Keystore via `expo-secure-store`, excluded from backup |
+| What the user typed (email, mobile, code, password) | **App** → HTTPS → server. The app never sees a code it didn't receive from the user. |
+
+**Superseded design (branch `feature/table-backend`, not shipped):** that branch generated the OTP on the phone,
+checked it on the phone and called SMS Integra directly with `EXPO_PUBLIC_SMS_URL_TEMPLATE`, which compiles the
+SMS Integra uid/password into the APK. Anyone could extract it and send SMS on CecureUs credit, and a modified
+app could skip the OTP check. This repo does not contain that code; `npm run check:secrets` (CI) fails if an
+SMS gateway URL or a secret-looking `EXPO_PUBLIC_*` variable is added back. **If real SMS Integra credentials
+were ever put in an `.env`/EAS variable for a build that was shared, rotate them.**
+
 ## Mobile app controls (verified in this repo)
 
 | Control | Status | Evidence |
 |---------|--------|----------|
-| No secrets in source or bundle | ✅ Verified | Source grep + scan of the exported Android Hermes bundle: no keys/passwords/DB/SMS strings. |
+| No secrets in source or bundle | ✅ Verified | `npm run check:secrets` in CI (source + config; pass `dist` to scan an exported bundle). |
 | No MySQL / SMS connection from the client | ✅ Verified | Only HTTPS JSON API via `src/api/client.ts`. |
 | HTTPS enforced | ✅ Verified | `src/config/env.ts` rejects non-HTTPS URLs except local mock servers in development (tested). |
 | Tokens in hardware-backed storage | ✅ | `expo-secure-store` (Android Keystore); excluded from Android backup (`configureAndroidBackup`). |

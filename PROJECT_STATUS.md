@@ -10,6 +10,21 @@ produced and tested on a device, and the legal URLs and final app ID are confirm
 
 `npm run check` → typecheck ✅ · lint ✅ · **120/120 tests ✅** (12 suites). `expo-doctor` 21/21 ✅. Android production JS bundle export ✅.
 
+## Update 2026-11-18 — secure auth backend, Play Store prep (repo CECUREUS_DEPLOY)
+- Built from `main`. The `feature/table-backend` approach (OTP generated/checked on the phone, SMS Integra
+  called from the app with `EXPO_PUBLIC_SMS_URL_TEMPLATE`) is **not** included: it put the SMS key in the APK.
+- `backend-php/`: PHP 8.1 reference implementation of every endpoint in `docs/API_CONTRACT.md` on the existing
+  tables — server-side OTP (hashed, rate-limited), Argon2id passwords with MD5 upgrade, hashed bearer tokens,
+  idempotent bookings with a per-counsellor lock, SMS/SMTP only from the server. CI runs it against MySQL 8 and
+  smoke-tests every endpoint. **Not yet deployed on eap.cecureus.com.**
+- `npm run check:secrets` (CI) blocks SMS gateway URLs / credentials / secret-looking `EXPO_PUBLIC_*` in the app.
+- No hard-coded people or accounts: demo mode and `npm run mock-api` start empty (create an account via sign-up);
+  docs use placeholders; test fixtures use neutral names.
+- `email` may be `null` for legacy `employee_list` rows (they sign in by mobile or employee ID).
+- `eas.json` fixes `EXPO_PUBLIC_APP_ENV` / `EXPO_PUBLIC_DEMO_MODE=false` per profile; step-by-step release guide in
+  `docs/PLAY_STORE.md`. Local run: 13/13 suites, 145 tests ✅, ESLint ✅, typecheck: no errors in project code
+  (local install was partial — CI runs the full check).
+
 ## UI redesign (Figma "Build Prototype") — branch `feature/figma-ui`
 Source: the Figma Make code export `Build Prototype.zip` (22 Jun 2026); the live Figma link could not be read
 (Figma connector not authorised). Ported to React Native: Nunito font, brand tokens, Lucide icons, top bar with

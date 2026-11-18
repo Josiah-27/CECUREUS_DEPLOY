@@ -15,6 +15,63 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # No SMS/DB/API secrets may ship inside the app (they belong in backend-php/.env on the server).
+      - run: npm run check:secrets
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test:coverage
+
+  # Runs the PHP reference backend against a real MySQL with the CecureUs table structure + demo data,
+  # then exercises every endpoint of the contract (backend-php/bin/smoke-test.php).
+  backend-php:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: cecureus_ci
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: pdo_mysql, curl, mbstring
+          coverage: none
+      - name: PHP syntax check
+        run: find backend-php -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Load table structure, helper tables and demo data
+        run: |
+          for f in sql/dev/000_existing_tables_structure.sql sql/001_mobile_api_tables.sql sql/dev/001_demo_seed.sql; do
+            mysql -h 127.0.0.1 -uroot -proot cecureus_ci < "backend-php/$f"
+          done
+      - name: Configure (development drivers write codes to storage/logs/messages.log)
+        working-directory: backend-php
+        run: |
+          {
+            echo "APP_ENV=development"
+            echo "APP_SECRET=$(php -r 'echo bin2hex(random_bytes(32));')"
+            echo "DB_HOST=127.0.0.1"
+            echo "DB_NAME=cecureus_ci"
+            echo "DB_USER=root"
+            echo "DB_PASS=root"
+            echo "SMS_DRIVER=log"
+            echo "MAIL_DRIVER=log"
+            echo "SMS_BOOKING_TEMPLATE_ID=ci-template"
+            echo "MEDIA_BASE_URL=https://eap.cecureus.com/uploads"
+          } > .env
+      - name: Start the API
+        working-directory: backend-php
+        run: |
+          php -S 127.0.0.1:8080 -t public public/index.php > storage/logs/server.log 2>&1 &
+          for i in $(seq 1 20); do curl -sf http://127.0.0.1:8080/api/mobile/v1/health && break; sleep 0.5; done
+      - name: Smoke test every endpoint
+        working-directory: backend-php
+        run: php bin/smoke-test.php http://127.0.0.1:8080/api/mobile/v1
+      - name: Server logs
+        if: always()
+        run: tail -n 100 backend-php/storage/logs/*.log || true

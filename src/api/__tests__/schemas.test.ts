@@ -43,11 +43,18 @@ describe('counsellorSchema', () => {
 });
 
 describe('userSchema', () => {
-  it('requires a valid email and known user type', () => {
+  it('requires a known user type', () => {
     const base = { id: 1, firstName: 'A', email: 'a@b.co', userType: 'corporate' };
     expect(userSchema.safeParse(base).success).toBe(true);
-    expect(userSchema.safeParse({ ...base, email: 'nope' }).success).toBe(false);
     expect(userSchema.safeParse({ ...base, userType: 'guest' }).success).toBe(false);
+  });
+
+  it('keeps a valid email and maps a missing or invalid legacy email to null', () => {
+    const base = { id: 1, firstName: 'A', userType: 'individual' };
+    expect(userSchema.parse({ ...base, email: ' a@b.co ' }).email).toBe('a@b.co');
+    expect(userSchema.parse({ ...base, email: 'nope' }).email).toBeNull();
+    expect(userSchema.parse({ ...base, email: '' }).email).toBeNull();
+    expect(userSchema.parse(base).email).toBeNull();
   });
 });
 

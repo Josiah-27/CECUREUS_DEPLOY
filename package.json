@@ -58,7 +58,8 @@
     "test:coverage": "jest --ci --coverage",
     "doctor": "npx expo-doctor@latest",
     "config:android": "expo config --type public --json",
-    "check": "npm run typecheck && npm run lint && npm run test:coverage",
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "check": "npm run check:secrets && npm run typecheck && npm run lint && npm run test:coverage",
     "mock-api": "node scripts/mock-api.mjs"
   },
   "private": true,

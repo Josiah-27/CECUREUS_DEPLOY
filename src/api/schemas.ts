@@ -51,7 +51,14 @@ export const userSchema = z.object({
   id,
   firstName: z.string(),
   lastName: optionalText,
-  email: z.string().email(),
+  /**
+   * Accounts created in the app always have a verified email. Older employee_list rows (who sign in
+   * with their mobile number or employee ID) may have none or an invalid one → null.
+   */
+  email: z
+    .string()
+    .nullish()
+    .transform((v) => (v && z.string().email().safeParse(v.trim()).success ? v.trim() : null)),
   mobile: optionalText,
   userType: userTypeSchema,
   companyName: optionalText,
