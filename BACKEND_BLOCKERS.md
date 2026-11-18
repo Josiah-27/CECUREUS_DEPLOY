@@ -1,8 +1,13 @@
 # Backend Blockers & Open Questions
 
-Last updated: 2026-10-20. The app is implemented and tested against the **proposed** contract in
+Last updated: 2026-11-18. The app is implemented and tested against the **proposed** contract in
 `docs/API_CONTRACT.md` using a deterministic mock server. **No feature below has been tested against a
 real CecureUs backend.** Mock-tested ≠ production-ready.
+
+**New:** [`backend-php/`](backend-php/README.md) is a working PHP implementation of the whole contract on the
+existing tables (B-01, B-02, B-04–B-08, B-10, B-12, B-13). The backend team can deploy it at
+`/api/mobile/v1` or copy its logic into the existing site. Its README lists the column meanings that still need
+confirming (B-03, B-16 and the `doctor_timelist` / `blog_post` / `percentage` formats).
 
 | ID | Feature | Missing | Blocks release? |
 |----|---------|---------|-----------------|

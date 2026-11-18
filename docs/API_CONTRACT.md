@@ -1,8 +1,10 @@
 # CecureUs Mobile API — Proposed Contract (v1)
 
-> **Status: PROPOSED — not yet implemented or confirmed by the backend team.**
+> **Status: PROPOSED — not yet deployed or confirmed by the backend team.**
 > The mobile app is built and tested against this contract using a mock server
-> (`src/test/mock-server.ts`). Nothing here has been verified against production.
+> (`src/test/mock-server.ts`). A complete **PHP reference implementation** of every endpoint, on the existing
+> MySQL tables, is in [`backend-php/`](../backend-php/README.md); how the app calls it is in
+> [`BACKEND_INTEGRATION.md`](BACKEND_INTEGRATION.md). Nothing here has been verified against production.
 > Please review, adjust, and confirm (see `BACKEND_BLOCKERS.md`).
 
 ## Why a new API is needed
@@ -37,19 +39,20 @@ The contract below exposes only the fields the app needs, behind authentication.
 |-------|------------------------|-------|
 | Account ID | `emp_id` | int primary key |
 | Email (user ID) | `emp_email` | lower-cased, unique among `status='active'` rows |
-| Mobile (user ID) | `emp_mobile` | E.164 `+91XXXXXXXXXX`, unique among active rows |
+| Mobile (user ID) | `emp_mobile` | stored as 10 digits like existing rows; the API returns E.164 `+91XXXXXXXXXX`; unique among active rows |
 | Employee ID (corporate user ID, optional) | `emp_companyid` | unique within the company |
-| Password | `emp_password` | **bcrypt/argon2id hash** (the dump looks like unsalted MD5 — rehash on next login) |
+| Password | `emp_password` | **Argon2id/bcrypt hash** (the dump looks like unsalted MD5 — accepted once, rehashed on login) |
 | First / last name | `emp_name` / `emp_lname` | |
 | Age | `emp_age` | `''` when not set |
-| Corporate or individual | `emp_role` | `'corporate'` / `'individual'` — **please confirm this column's meaning** (B-16) |
+| Corporate or individual | `emp_option` | `'Corporate'` / `'Individual'` as in existing rows (`emp_role` is also read) — **please confirm** (B-16) |
 | Company | `emp_companyname`, `emp_organisationname` | set by the server from the work-email domain |
-| Current OTP | `emp_otp` | store a **hash**; one column is enough because email and mobile are verified one after the other |
-| Lifecycle | `status` | `'pending'` during sign-up → `'active'` → `'deleted'` |
-| Timestamps | `created_at`, `updated_at`, `reg_date` | legacy format `DD-MM-YYYY hh:mm:ss AM` |
+| OTP | — | **not** stored in `emp_otp`: an HMAC of each code lives in the new `mobile_otp_requests` table |
+| Lifecycle | `status` | row is inserted as `'Active'` only when sign-up completes; account deletion writes `'Cancel'` (configurable) |
+| Timestamps | `created_at`, `updated_at`, `reg_date` | legacy format `DD-MM-YYYY hh:mm:ss AM` (IST) |
 
-OTP issue time, attempt counts, registration tokens and login-failure counters are short-lived server state
-(cache/session store), not table columns.
+OTP requests, sign-ups in progress, sign-in tokens, rate-limit counters and booking idempotency keys are
+short-lived server state kept in **new** `mobile_*` tables (`backend-php/sql/001_mobile_api_tables.sql`),
+not in `employee_list`. Only hashes of codes and tokens are stored.
 
 **User ID.** The table has no username column, so a user signs in with **any** of: email, mobile number, or
 (corporate) employee ID, plus their password.
@@ -58,18 +61,19 @@ OTP issue time, attempt counts, registration tokens and login-failure counters a
 
 1. `POST /auth/register/email/request` — `{ "email", "userType": "corporate" | "individual" }`
    → `{ "requestId", "expiresInSeconds": 600, "resendAfterSeconds": 60 }`.
-   Creates (or reuses) a `status='pending'` row, stores the OTP in `emp_otp`, emails the code.
+   Generates a code with a CSPRNG, stores only its hash, emails the code. Nothing is written to `employee_list` yet.
    Errors: `409 EMAIL_TAKEN` (active account exists), `422 COMPANY_NOT_REGISTERED` (corporate domain not on file),
    `429 OTP_COOLDOWN` with `Retry-After`.
 2. `POST /auth/register/email/verify` — `{ "requestId", "otp" }` → `{ "registrationToken" }`.
    Errors: `422 OTP_INVALID`, `422 OTP_EXPIRED` (10 minutes), `429 OTP_LOCKED` (5 wrong attempts).
 3. `POST /auth/register/phone/request` — `{ "registrationToken", "mobile" }` → `{ "requestId", … }`.
-   Saves `emp_mobile` on the pending row, stores a new OTP in `emp_otp`, sends it by SMS.
+   Remembers the mobile on the sign-up in progress, stores a new code hash, sends it by SMS **from the server**
+   (SMS Integra over HTTPS; credentials never in the app).
    Errors: `422 INVALID_MOBILE`, `409 MOBILE_TAKEN`, `429 OTP_COOLDOWN`, `422 REGISTRATION_EXPIRED`.
 4. `POST /auth/register/phone/verify` — `{ "registrationToken", "requestId", "otp" }` → `null`.
 5. `POST /auth/register/complete` — `{ "registrationToken", "firstName", "lastName" | null, "password", "employeeId" | null }`
-   → `201` AuthSession (signed in). Sets name, password hash, `emp_companyid`, `reg_date`, `status='active'`,
-   clears `emp_otp`. Errors: `422 VERIFICATION_REQUIRED` (email and mobile not both verified),
+   → `201` AuthSession (signed in). Inserts the `employee_list` row (name, email, mobile, password hash,
+   `emp_option`, company, `emp_companyid`, `reg_date`, `status='Active'`). Errors: `422 VERIFICATION_REQUIRED` (email and mobile not both verified),
    `422 WEAK_PASSWORD` (min 8, letter + number), `409 EMPLOYEE_ID_TAKEN`.
 
 ### Sign in
@@ -87,15 +91,16 @@ Password reset is not part of Phase 1 (the app points users to support) — see 
 ## 2. Profile
 
 **User object** (from `employee_list`; never includes `emp_password` or `emp_otp`)
+`email` may be `null` for older accounts that have no valid email on file (they sign in with mobile or employee ID).
 ```json
 {
-  "id": "101",
-  "firstName": "Harsha",
-  "lastName": "Verma",
-  "email": "harsha@company.com",
-  "mobile": "+919876543210",
+  "id": "<emp_id>",
+  "firstName": "<first name>",
+  "lastName": "<last name or null>",
+  "email": "<verified email or null>",
+  "mobile": "<+91XXXXXXXXXX or null>",
   "userType": "corporate",
-  "companyName": "Hyundai",
+  "companyName": "<company from the work-email domain>",
   "sessionsRemaining": 4,
   "age": 29
 }
@@ -120,14 +125,14 @@ Password reset is not part of Phase 1 (the app points users to support) — see 
 ```json
 {
   "id": "1",
-  "name": "Mr. Kannan Parthasarathy",
+  "name": "<doc_name>",
   "title": "Clinical Psychologist",
   "city": "Chennai",
   "experienceYears": 28,
   "languages": ["English", "Tamil"],
   "expertise": ["Anxiety Management", "Stress Management"],
   "about": "…",
-  "imageUrl": "https://eap.cecureus.com/uploads/doctor/1766122184My_Photo-Dec_25.jpeg",
+  "imageUrl": "https://eap.cecureus.com/uploads/doctor/<doct_image>",
   "rating": 4.9,
   "sessionsCount": 412,
   "modes": ["audio", "video", "chat"]
@@ -161,7 +166,7 @@ existing non-cancelled `booking_appointment` rows, minus past times. Only bookab
 {
   "id": "5001",
   "counsellorId": "1",
-  "counsellorName": "Mr. Kannan Parthasarathy",
+  "counsellorName": "<doc_name>",
   "start": "2026-11-02T10:00:00+05:30",
   "end": "2026-11-02T11:00:00+05:30",
   "mode": "video",
