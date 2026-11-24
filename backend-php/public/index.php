@@ -13,4 +13,4 @@ $backendRoot = __DIR__ . '/..';
 
 require $backendRoot . '/src/bootstrap.php';
 
-\Cecureus\App::run();
+Cecureus\App::run();

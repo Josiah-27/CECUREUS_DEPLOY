@@ -49,7 +49,7 @@ function call(string $method, string $path, ?array $body = null, ?string $token 
 function check(string $label, bool $ok, mixed $detail = null): void
 {
     global $failures;
-    echo ($ok ? "  PASS " : "  FAIL ") . $label . ($ok || $detail === null ? '' : ' → ' . json_encode($detail)) . PHP_EOL;
+    echo ($ok ? '  PASS ' : '  FAIL ') . $label . ($ok || $detail === null ? '' : ' → ' . json_encode($detail)) . PHP_EOL;
     if (!$ok) {
         $failures++;
     }

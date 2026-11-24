@@ -175,6 +175,7 @@ sql/dev/                      LOCAL ONLY: existing table structure + demo data
 bin/smoke-test.php            end-to-end test of every endpoint
 bin/race-test.php             parallel Idempotency-Key booking race test
 bin/housekeeping.php          daily cleanup of the mobile_* tables + log rotation
+composer.json                 only PHPMailer is required to run the API
 tests/run.php                 unit and integration tests (php tests/run.php)
 ```
 
@@ -264,6 +265,12 @@ the same `DB_*` settings as the API and are skipped when no database is reachabl
 
 ```bash
 php tests/run.php
+```
+
+The style check runs after a one-time `composer install` in `backend-php`:
+
+```bash
+composer cs:check   # or: composer cs:fix to apply
 ```
 
 Manual calls with curl:

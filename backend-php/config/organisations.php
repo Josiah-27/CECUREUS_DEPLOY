@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * Corporate sign-up: work-email domain → partner organisation (BACKEND_BLOCKERS B-03).
  * A corporate sign-up is accepted only when the email's domain is listed here.
