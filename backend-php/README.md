@@ -191,6 +191,7 @@ for errors.
 |---|---|
 | SMS/SMTP/DB credentials only in server `.env`; SMS Integra called over HTTPS from the server | `.env`, `src/Notify/SmsIntegraSender.php` |
 | OTP: `random_int` 6 digits, only an HMAC stored, 10 min expiry, 60 s resend, 5 wrong tries, 5 codes/target/hour, 20 codes/IP/hour, never returned by the API | `src/Security/Otp.php`, `AuthController` |
+| Taken email/mobile answers rate limited per IP (30/h), so accounts cannot be probed at full speed | `AuthController` |
 | Passwords: Argon2id/bcrypt; old MD5 hashes accepted once and upgraded on login | `src/Security/Passwords.php` |
 | Login: same error for wrong user ID or password; 5 failures → 15 min lock; 100 failures/IP/15 min | `AuthController::login` |
 | Tokens: 32 random bytes, only SHA-256 stored, 30 days, revoked on logout/delete/deactivation | `src/Security/Sessions.php` |

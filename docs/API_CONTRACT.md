@@ -65,13 +65,14 @@ not in `employee_list`. Only hashes of codes and tokens are stored.
    → `{ "requestId", "expiresInSeconds": 600, "resendAfterSeconds": 60 }`.
    Generates a code with a CSPRNG, stores only its hash, emails the code. Nothing is written to `employee_list` yet.
    Errors: `409 EMAIL_TAKEN` (active account exists), `422 COMPANY_NOT_REGISTERED` (corporate domain not on file),
-   `429 OTP_COOLDOWN` with `Retry-After`.
+   `429 RATE_LIMITED` with `Retry-After` (too many lookups from one IP), `429 OTP_COOLDOWN` with `Retry-After`.
 2. `POST /auth/register/email/verify` — `{ "requestId", "otp" }` → `{ "registrationToken" }`.
    Errors: `422 OTP_INVALID`, `422 OTP_EXPIRED` (10 minutes), `429 OTP_LOCKED` (5 wrong attempts).
 3. `POST /auth/register/phone/request` — `{ "registrationToken", "mobile" }` → `{ "requestId", … }`.
    Remembers the mobile on the sign-up in progress, stores a new code hash, sends it by SMS **from the server**
    (SMS Integra over HTTPS; credentials never in the app).
-   Errors: `422 INVALID_MOBILE`, `409 MOBILE_TAKEN`, `429 OTP_COOLDOWN`, `422 REGISTRATION_EXPIRED`.
+   Errors: `422 INVALID_MOBILE`, `409 MOBILE_TAKEN`, `429 RATE_LIMITED` with `Retry-After` (too many lookups
+   from one IP), `429 OTP_COOLDOWN`, `422 REGISTRATION_EXPIRED`.
 4. `POST /auth/register/phone/verify` — `{ "registrationToken", "requestId", "otp" }` → `null`.
 5. `POST /auth/register/complete` — `{ "registrationToken", "firstName", "lastName" | null, "password", "employeeId" | null }`
    → `201` AuthSession (signed in). Inserts the `employee_list` row (name, email, mobile, password hash,
