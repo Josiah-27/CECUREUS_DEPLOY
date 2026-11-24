@@ -119,9 +119,9 @@ location ^~ /api/mobile/v1/ {
 }
 ```
 
-7. Check: `curl https://eap.cecureus.com/api/mobile/v1/health` → `{"status":true,"data":{"ok":true}}`.
+6. Check: `curl https://eap.cecureus.com/api/mobile/v1/health` → `{"status":true,"data":{"ok":true}}`.
    Then `curl https://eap.cecureus.com/api/mobile/v1/me` → `401 UNAUTHENTICATED` (proves routing + JSON errors).
-8. Run `bin/smoke-test.php` against **staging** (with log drivers), never against production.
+7. Run `bin/smoke-test.php` against **staging** (with log drivers), never against production.
 
 ### Database user
 
@@ -166,6 +166,7 @@ config/videos.php             video list (no table exists yet)
 sql/001_mobile_api_tables.sql new helper tables (run on the real DB)
 sql/dev/                      LOCAL ONLY: existing table structure + demo data
 bin/smoke-test.php            end-to-end test of every endpoint
+tests/run.php                 unit and integration tests (php tests/run.php)
 ```
 
 **Adding an endpoint:** add a line to `src/routes.php`, write a static method
@@ -235,6 +236,15 @@ slot conflict (409), cancel, articles, assessments (no scores sent), logout revo
 
 ```bash
 php bin/smoke-test.php https://staging.example.com/api/mobile/v1 /path/to/storage/logs/messages.log
+```
+
+`tests/run.php` covers the rest: request/auth-scheme handling, text and time helpers, the booking row
+mapping, passwords, log rotation, and database-backed tests for sessions, OTP, the rate limiter,
+the idempotency race and the housekeeping script. It needs no Composer install; the database tests use
+the same `DB_*` settings as the API and are skipped when no database is reachable:
+
+```bash
+php tests/run.php
 ```
 
 Manual calls with curl:
