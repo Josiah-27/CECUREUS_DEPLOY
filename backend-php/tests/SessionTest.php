@@ -24,6 +24,18 @@ test('created sessions authenticate and return the user', function (): void {
     }
 });
 
+test('lowercase bearer scheme authenticates (regression for the 401)', function (): void {
+    needDb();
+    $employee = seedEmployee();
+    try {
+        $token = Sessions::create($employee, makeRequest())['accessToken'];
+        $row = Sessions::authenticate(makeRequest(headers: ['authorization' => 'bearer ' . $token]));
+        check((int) $row['emp_id'] === (int) $employee['emp_id'], 'lowercase bearer rejected');
+    } finally {
+        deleteEmployee((int) $employee['emp_id']);
+    }
+});
+
 test('missing or broken tokens are unauthenticated', function (): void {
     needDb();
     catchApi(static function (): void {

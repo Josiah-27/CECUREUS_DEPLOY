@@ -102,7 +102,8 @@ final class Request
     public function bearerToken(): ?string
     {
         $auth = $this->header('authorization');
-        if ($auth === null || !preg_match('/^Bearer\s+([A-Za-z0-9_\-]{20,200})$/', trim($auth), $m)) {
+        // The auth scheme is case-insensitive per the HTTP spec, so "bearer" works too.
+        if ($auth === null || !preg_match('/^Bearer\s+([A-Za-z0-9_\-]{20,200})$/i', trim($auth), $m)) {
             return null;
         }
         return $m[1];

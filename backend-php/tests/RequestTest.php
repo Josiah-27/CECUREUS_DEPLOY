@@ -12,6 +12,16 @@ test('bearer token accepted with exact "Bearer" scheme', function () use ($token
     check($request->bearerToken() === $token, 'token not returned');
 });
 
+test('bearer token accepted with lowercase "bearer" scheme (regression: 401 before)', function () use ($token): void {
+    $request = makeRequest(headers: ['authorization' => 'bearer ' . $token]);
+    check($request->bearerToken() === $token, 'lowercase bearer not accepted');
+});
+
+test('bearer token accepted with uppercase "BEARER" scheme', function () use ($token): void {
+    $request = makeRequest(headers: ['authorization' => 'BEARER ' . $token]);
+    check($request->bearerToken() === $token, 'uppercase bearer not accepted');
+});
+
 test('wrong or missing scheme returns no token', function () use ($token): void {
     check(makeRequest(headers: ['authorization' => 'Basic ' . $token])->bearerToken() === null, 'basic accepted');
     check(makeRequest(headers: ['authorization' => $token])->bearerToken() === null, 'bare token accepted');
