@@ -12,6 +12,7 @@ use Cecureus\Http\Response;
 use Cecureus\Notify\Channels;
 use Cecureus\Repo\Bookings;
 use Cecureus\Repo\Counsellors;
+use Cecureus\Repo\DuplicateIdempotencyKey;
 use Cecureus\Repo\Employees;
 use Cecureus\Repo\Organisations;
 use Cecureus\Security\RateLimiter;
@@ -22,7 +23,8 @@ use Cecureus\Support\Time;
 
 /**
  * Booking rules (docs/API_CONTRACT.md §5):
- *  1. Same (user, Idempotency-Key) → the original booking is returned; no second booking, no second SMS.
+ *  1. Same (user, Idempotency-Key) → the original booking is returned; no second booking, no second
+ *     SMS, even when two requests with the same key race in parallel.
  *  2. Slot check + insert happen under a per-counsellor MySQL lock, so two people can't take one slot.
  *  3. Corporate entitlement is checked.
  *  4. The admin SMS is sent AFTER the booking is saved; an SMS failure never fails the booking.
@@ -90,6 +92,13 @@ final class BookingController
             }
             [$ymd, $startMinutes, $duration] = $slot;
             $bookId = Bookings::create($employee, $doctor, $ymd, $startMinutes, $duration, $mode, $issue, $language, $notes, $key);
+        } catch (DuplicateIdempotencyKey) {
+            // A parallel request with the same key claimed the booking first. Same answer as a retry.
+            $replay = Bookings::findByIdempotencyKey($empId, $key);
+            if ($replay === null) {
+                throw new ApiException(503, 'BUSY', 'The server is busy. Please try again.');
+            }
+            return Response::ok(Bookings::toBooking($replay));
         } finally {
             Db::unlock($lock);
         }

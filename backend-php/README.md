@@ -166,6 +166,7 @@ config/videos.php             video list (no table exists yet)
 sql/001_mobile_api_tables.sql new helper tables (run on the real DB)
 sql/dev/                      LOCAL ONLY: existing table structure + demo data
 bin/smoke-test.php            end-to-end test of every endpoint
+bin/race-test.php             parallel Idempotency-Key booking race test
 tests/run.php                 unit and integration tests (php tests/run.php)
 ```
 
@@ -187,7 +188,7 @@ for errors.
 | Tokens: 32 random bytes, only SHA-256 stored, 30 days, revoked on logout/delete/deactivation | `src/Security/Sessions.php` |
 | Every user endpoint is scoped to the signed-in user (`customer_id = emp_id`) | `src/Repo/Bookings.php` |
 | Only public counsellor fields are selected (no password, PAN, bank, phone, email, Zoom) | `src/Repo/Counsellors.php` |
-| Bookings: Idempotency-Key replay, per-counsellor MySQL lock (tables are MyISAM), SMS after save, sent once | `BookingController` |
+| Bookings: Idempotency-Key replay, per-counsellor MySQL lock (tables are MyISAM), parallel same-key requests replay instead of failing, SMS after save, sent once | `BookingController` |
 | SQL injection: every value is a bound `?` parameter | `src/Db.php` |
 | Errors: details only in `storage/logs/app.log`; the client gets a generic message | `src/App.php` |
 | `log` drivers refused in production | `src/Notify/Channels.php` |
@@ -236,6 +237,15 @@ slot conflict (409), cancel, articles, assessments (no scores sent), logout revo
 
 ```bash
 php bin/smoke-test.php https://staging.example.com/api/mobile/v1 /path/to/storage/logs/messages.log
+```
+
+`bin/race-test.php` fires the requests the smoke test cannot: two parallel `POST /bookings` with the same
+`Idempotency-Key` for two different counsellors, several rounds. Both answers must reference one booking,
+and `GET /bookings` must not gain a duplicate. The server needs more than one worker:
+
+```bash
+PHP_CLI_SERVER_WORKERS=8 php -S 0.0.0.0:8080 -t public public/index.php
+php bin/race-test.php http://localhost:8080/api/mobile/v1     # in a second terminal
 ```
 
 `tests/run.php` covers the rest: request/auth-scheme handling, text and time helpers, the booking row

@@ -171,13 +171,25 @@ final class Bookings
             'popupcount' => 0,
             'remainder_status' => 0,
         ]);
-        Db::insert('mobile_bookings', [
-            'book_id' => $bookId,
-            'emp_id' => (int) $employee['emp_id'],
-            'idempotency_key' => $idempotencyKey,
-            'sms_status' => 'queued',
-            'created_at' => Time::utc(time()),
-        ]);
+        try {
+            Db::insert('mobile_bookings', [
+                'book_id' => $bookId,
+                'emp_id' => (int) $employee['emp_id'],
+                'idempotency_key' => $idempotencyKey,
+                'sms_status' => 'queued',
+                'created_at' => Time::utc(time()),
+            ]);
+        } catch (\PDOException $e) {
+            // Two parallel requests with the same key can both reach this point (they hold
+            // different counsellor locks). The unique key on (emp_id, idempotency_key) means the
+            // other request won, and MyISAM cannot roll back the booking row written above, so
+            // delete it and let the caller replay the winner's booking.
+            if (($e->errorInfo[1] ?? null) !== 1062) {
+                throw $e;
+            }
+            Db::run('DELETE FROM booking_appointment WHERE book_id = ?', [$bookId]);
+            throw new DuplicateIdempotencyKey();
+        }
         return $bookId;
     }
 
