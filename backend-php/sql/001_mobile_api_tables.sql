@@ -65,8 +65,6 @@ CREATE TABLE IF NOT EXISTS `mobile_bookings` (
   UNIQUE KEY `uq_mobile_bookings_idempotency` (`emp_id`, `idempotency_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Housekeeping (optional, e.g. a daily cron):
--- DELETE FROM mobile_otp_requests  WHERE expires_at < UTC_TIMESTAMP() - INTERVAL 1 DAY;
--- DELETE FROM mobile_registrations WHERE expires_at < UTC_TIMESTAMP();
--- DELETE FROM mobile_rate_limits   WHERE window_start < UTC_TIMESTAMP() - INTERVAL 1 DAY;
--- DELETE FROM mobile_sessions      WHERE expires_at < UTC_TIMESTAMP() - INTERVAL 7 DAY;
+-- Housekeeping: run bin/housekeeping.php once a day from cron. It deletes expired sessions
+-- (and revoked ones), OTP requests older than a day, expired sign-ups, rate-limit windows older
+-- than a day, and rotates the log files. Nothing here is needed for correct responses.

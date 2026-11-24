@@ -84,9 +84,16 @@ Plain `http://` is accepted by the app only for local/LAN addresses in developme
 2. `cd /home/cecureus/mobile-api && composer install --no-dev` (only needed for `MAIL_DRIVER=smtp`).
 3. `cp .env.example .env`, fill in every value, set `APP_ENV=production`. `chmod 600 .env`.
 4. Make `storage/logs/` writable by PHP.
-5. Run `sql/001_mobile_api_tables.sql` on the **real** database (it only creates new `mobile_*` tables).
+5. Add a daily cron for the housekeeping script (deletes expired sessions, OTP requests, sign-ups
+   and rate-limit windows, rotates the logs):
+
+   ```
+   0 3 * * *  php /home/cecureus/mobile-api/bin/housekeeping.php
+   ```
+
+6. Run `sql/001_mobile_api_tables.sql` on the **real** database (it only creates new `mobile_*` tables).
    **Never run the files in `sql/dev/` on the real database.**
-6. Route `https://eap.cecureus.com/api/mobile/v1/*` to `public/index.php`:
+7. Route `https://eap.cecureus.com/api/mobile/v1/*` to `public/index.php`:
 
 **Apache (VirtualHost access):**
 
@@ -119,9 +126,9 @@ location ^~ /api/mobile/v1/ {
 }
 ```
 
-6. Check: `curl https://eap.cecureus.com/api/mobile/v1/health` → `{"status":true,"data":{"ok":true}}`.
+7. Check: `curl https://eap.cecureus.com/api/mobile/v1/health` → `{"status":true,"data":{"ok":true}}`.
    Then `curl https://eap.cecureus.com/api/mobile/v1/me` → `401 UNAUTHENTICATED` (proves routing + JSON errors).
-7. Run `bin/smoke-test.php` against **staging** (with log drivers), never against production.
+8. Run `bin/smoke-test.php` against **staging** (with log drivers), never against production.
 
 ### Database user
 
@@ -167,6 +174,7 @@ sql/001_mobile_api_tables.sql new helper tables (run on the real DB)
 sql/dev/                      LOCAL ONLY: existing table structure + demo data
 bin/smoke-test.php            end-to-end test of every endpoint
 bin/race-test.php             parallel Idempotency-Key booking race test
+bin/housekeeping.php          daily cleanup of the mobile_* tables + log rotation
 tests/run.php                 unit and integration tests (php tests/run.php)
 ```
 
