@@ -44,6 +44,12 @@ jobs:
           coverage: none
       - name: PHP syntax check
         run: find backend-php -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Install Composer packages
+        working-directory: backend-php
+        run: composer install --no-interaction --no-progress
+      - name: PHP style check
+        working-directory: backend-php
+        run: composer cs:check
       - name: Load table structure, helper tables and demo data
         run: |
           for f in sql/dev/000_existing_tables_structure.sql sql/001_mobile_api_tables.sql sql/dev/001_demo_seed.sql; do
