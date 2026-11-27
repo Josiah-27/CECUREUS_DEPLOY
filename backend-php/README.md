@@ -84,9 +84,16 @@ Plain `http://` is accepted by the app only for local/LAN addresses in developme
 2. `cd /home/cecureus/mobile-api && composer install --no-dev` (only needed for `MAIL_DRIVER=smtp`).
 3. `cp .env.example .env`, fill in every value, set `APP_ENV=production`. `chmod 600 .env`.
 4. Make `storage/logs/` writable by PHP.
-5. Run `sql/001_mobile_api_tables.sql` on the **real** database (it only creates new `mobile_*` tables).
+5. Add a daily cron for the housekeeping script (deletes expired sessions, OTP requests, sign-ups
+   and rate-limit windows, rotates the logs):
+
+   ```
+   0 3 * * *  php /home/cecureus/mobile-api/bin/housekeeping.php
+   ```
+
+6. Run `sql/001_mobile_api_tables.sql` on the **real** database (it only creates new `mobile_*` tables).
    **Never run the files in `sql/dev/` on the real database.**
-6. Route `https://eap.cecureus.com/api/mobile/v1/*` to `public/index.php`:
+7. Route `https://eap.cecureus.com/api/mobile/v1/*` to `public/index.php`:
 
 **Apache (VirtualHost access):**
 
@@ -166,6 +173,10 @@ config/videos.php             video list (no table exists yet)
 sql/001_mobile_api_tables.sql new helper tables (run on the real DB)
 sql/dev/                      LOCAL ONLY: existing table structure + demo data
 bin/smoke-test.php            end-to-end test of every endpoint
+bin/race-test.php             parallel Idempotency-Key booking race test
+bin/housekeeping.php          daily cleanup of the mobile_* tables + log rotation
+composer.json                 only PHPMailer is required to run the API
+tests/run.php                 unit and integration tests (php tests/run.php)
 ```
 
 **Adding an endpoint:** add a line to `src/routes.php`, write a static method
@@ -181,12 +192,13 @@ for errors.
 |---|---|
 | SMS/SMTP/DB credentials only in server `.env`; SMS Integra called over HTTPS from the server | `.env`, `src/Notify/SmsIntegraSender.php` |
 | OTP: `random_int` 6 digits, only an HMAC stored, 10 min expiry, 60 s resend, 5 wrong tries, 5 codes/target/hour, 20 codes/IP/hour, never returned by the API | `src/Security/Otp.php`, `AuthController` |
+| Taken email/mobile answers rate limited per IP (30/h), so accounts cannot be probed at full speed | `AuthController` |
 | Passwords: Argon2id/bcrypt; old MD5 hashes accepted once and upgraded on login | `src/Security/Passwords.php` |
 | Login: same error for wrong user ID or password; 5 failures → 15 min lock; 100 failures/IP/15 min | `AuthController::login` |
 | Tokens: 32 random bytes, only SHA-256 stored, 30 days, revoked on logout/delete/deactivation | `src/Security/Sessions.php` |
 | Every user endpoint is scoped to the signed-in user (`customer_id = emp_id`) | `src/Repo/Bookings.php` |
 | Only public counsellor fields are selected (no password, PAN, bank, phone, email, Zoom) | `src/Repo/Counsellors.php` |
-| Bookings: Idempotency-Key replay, per-counsellor MySQL lock (tables are MyISAM), SMS after save, sent once | `BookingController` |
+| Bookings: Idempotency-Key replay, per-counsellor MySQL lock (tables are MyISAM), parallel same-key requests replay instead of failing, SMS after save, sent once | `BookingController` |
 | SQL injection: every value is a bound `?` parameter | `src/Db.php` |
 | Errors: details only in `storage/logs/app.log`; the client gets a generic message | `src/App.php` |
 | `log` drivers refused in production | `src/Notify/Channels.php` |
@@ -235,6 +247,30 @@ slot conflict (409), cancel, articles, assessments (no scores sent), logout revo
 
 ```bash
 php bin/smoke-test.php https://staging.example.com/api/mobile/v1 /path/to/storage/logs/messages.log
+```
+
+`bin/race-test.php` fires the requests the smoke test cannot: two parallel `POST /bookings` with the same
+`Idempotency-Key` for two different counsellors, several rounds. Both answers must reference one booking,
+and `GET /bookings` must not gain a duplicate. The server needs more than one worker:
+
+```bash
+PHP_CLI_SERVER_WORKERS=8 php -S 0.0.0.0:8080 -t public public/index.php
+php bin/race-test.php http://localhost:8080/api/mobile/v1     # in a second terminal
+```
+
+`tests/run.php` covers the rest: request/auth-scheme handling, text and time helpers, the booking row
+mapping, passwords, log rotation, and database-backed tests for sessions, OTP, the rate limiter,
+the idempotency race and the housekeeping script. It needs no Composer install; the database tests use
+the same `DB_*` settings as the API and are skipped when no database is reachable:
+
+```bash
+php tests/run.php
+```
+
+The style check runs after a one-time `composer install` in `backend-php`:
+
+```bash
+composer cs:check   # or: composer cs:fix to apply
 ```
 
 Manual calls with curl:

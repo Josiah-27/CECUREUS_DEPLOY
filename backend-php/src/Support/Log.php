@@ -11,6 +11,10 @@ use const Cecureus\ROOT;
 /** Append-only log file. Never log passwords, OTP codes (outside the dev message log), tokens or SMS credentials. */
 final class Log
 {
+    private const FILES = ['app.log', 'messages.log'];
+
+    private const ROTATE_BYTES = 5 * 1024 * 1024;
+
     public static function error(string $message, ?\Throwable $e = null): void
     {
         if ($e !== null) {
@@ -40,6 +44,21 @@ final class Log
             @mkdir($dir, 0750, true);
         }
         return $dir;
+    }
+
+    /**
+     * Moves app.log and messages.log aside once they pass LOG_ROTATE_BYTES (one previous copy is
+     * kept as <name>.1). Called by bin/housekeeping.php so a busy day cannot grow the logs forever.
+     */
+    public static function rotate(): void
+    {
+        $limit = Config::int('LOG_ROTATE_BYTES', self::ROTATE_BYTES);
+        foreach (self::FILES as $file) {
+            $path = self::dir() . '/' . $file;
+            if (is_file($path) && (int) filesize($path) > $limit) {
+                @rename($path, $path . '.1');
+            }
+        }
     }
 
     private static function write(string $file, string $line): void

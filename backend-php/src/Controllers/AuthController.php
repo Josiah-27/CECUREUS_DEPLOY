@@ -31,6 +31,10 @@ final class AuthController
 {
     private const OTP_IP_LIMIT_PER_HOUR = 20;
 
+    // The taken answers are one cheap DB query each, but that is exactly what makes account
+    // probing cheap, so they get their own per-IP counter (independent of the code-sending budget).
+    private const TAKEN_ANSWER_IP_LIMIT_PER_HOUR = 30;
+
     /** POST /auth/register/email/request {email, userType} */
     public static function registerEmailRequest(Request $request): Response
     {
@@ -41,6 +45,8 @@ final class AuthController
         if (!Text::isEmail($email)) {
             throw ApiException::validation('Enter a valid email address.', 'INVALID_EMAIL');
         }
+        // Runs before the taken check: a 409 answer must not be queryable at full speed.
+        self::limitTakenAnswerPerIp($request, 'email-taken-ip');
         if (Employees::emailTaken($email)) {
             throw new ApiException(409, 'EMAIL_TAKEN', 'An account with this email already exists. Please sign in instead.');
         }
@@ -99,6 +105,7 @@ final class AuthController
         if ($mobile === null) {
             throw ApiException::validation('Enter a valid 10-digit Indian mobile number.', 'INVALID_MOBILE');
         }
+        self::limitTakenAnswerPerIp($request, 'mobile-taken-ip');
         if (Employees::mobileTaken($mobile)) {
             throw new ApiException(409, 'MOBILE_TAKEN', 'This mobile number is already linked to an account. Please sign in instead.');
         }
@@ -262,5 +269,10 @@ final class AuthController
             'OTP_LIMIT',
             'Too many codes requested. Please try again later.',
         );
+    }
+
+    private static function limitTakenAnswerPerIp(Request $request, string $bucket): void
+    {
+        RateLimiter::consume($bucket . ':' . $request->ip(), self::TAKEN_ANSWER_IP_LIMIT_PER_HOUR, 3600);
     }
 }

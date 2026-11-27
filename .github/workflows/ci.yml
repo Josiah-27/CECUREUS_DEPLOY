@@ -44,6 +44,12 @@ jobs:
           coverage: none
       - name: PHP syntax check
         run: find backend-php -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Install Composer packages
+        working-directory: backend-php
+        run: composer install --no-interaction --no-progress
+      - name: PHP style check
+        working-directory: backend-php
+        run: composer cs:check
       - name: Load table structure, helper tables and demo data
         run: |
           for f in sql/dev/000_existing_tables_structure.sql sql/001_mobile_api_tables.sql sql/dev/001_demo_seed.sql; do
@@ -64,14 +70,24 @@ jobs:
             echo "SMS_BOOKING_TEMPLATE_ID=ci-template"
             echo "MEDIA_BASE_URL=https://eap.cecureus.com/uploads"
           } > .env
+      - name: Unit and integration tests
+        working-directory: backend-php
+        run: php tests/run.php
       - name: Start the API
         working-directory: backend-php
+        env:
+          # Several workers so bin/race-test.php can hit the API in parallel.
+          PHP_CLI_SERVER_WORKERS: '8'
         run: |
           php -S 127.0.0.1:8080 -t public public/index.php > storage/logs/server.log 2>&1 &
           for i in $(seq 1 20); do curl -sf http://127.0.0.1:8080/api/mobile/v1/health && break; sleep 0.5; done
       - name: Smoke test every endpoint
         working-directory: backend-php
         run: php bin/smoke-test.php http://127.0.0.1:8080/api/mobile/v1
+      - name: Booking Idempotency-Key race test
+        working-directory: backend-php
+        run: php bin/race-test.php http://127.0.0.1:8080/api/mobile/v1
       - name: Server logs
         if: always()
         run: tail -n 100 backend-php/storage/logs/*.log || true
+
